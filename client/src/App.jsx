@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 
 function App() {
   const [page, setPage] = useState('home')
+  const [selectedFaculty, setSelectedFaculty] = useState(null)
+const [selectedDepartment, setSelectedDepartment] = useState(null)
+const [selectedLevel, setSelectedLevel] = useState(null)
   const [showRating, setShowRating] = useState(null) // { lectureId, lectureTitle }
 const [ratingValue, setRatingValue] = useState(0)
 const [ratingComment, setRatingComment] = useState('')
@@ -365,76 +368,32 @@ const submitComment = async (lectureId) => {
 
         <main style={css.main}>
           {/* HOME */}
-          {page === 'home' && (
-            <div style={{ animation: 'fadeIn 0.4s ease' }}>
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 8, background: `linear-gradient(135deg, ${t.accent}, ${t.purple})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Lecture Library</h1>
-                <p style={{ fontSize: 16, color: t.sub, maxWidth: 500, margin: '0 auto 24px' }}>Access past, current, and upcoming lecture PDFs across all faculties and departments</p>
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button style={css.btn(t.accent)} onClick={() => setPage('search')}>🔍 Find Lectures</button>
-                  <button style={css.btn(t.success)} onClick={() => setPage('read')}>📖 My Library</button>
-                </div>
-              </div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>📚 All Courses</h2>
-              {loading ? (
-                <div style={css.grid}>
-                  {[1,2,3,4,5,6].map(i => (
-                    <div key={i} style={css.card}><Skeleton h={24} w="60%" /><Skeleton h={16} w="80%" /><Skeleton h={12} w="40%" /></div>
-                  ))}
-                </div>
-              ) : (
-                <div style={css.grid}>
-                  {courses.map(c => (
-                    <div key={c.id} style={{...css.card, cursor: 'pointer'}} {...cardHover}
-                      onClick={() => { setSelectedCourse(c); loadLectures(c.id); setPage('course') }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 8 }}>
-                        <span style={css.tag(t.accent)}>{c.code}</span>
-                        <span style={{ fontSize: 12, color: t.sub, fontWeight: 600 }}>L{c.level}</span>
-                      </div>
-                      <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>{c.title}</h3>
-                      <p style={{ color: t.sub, fontSize: 13, margin: 0 }}>Semester {c.semester} • {c.units || 2} units</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* SEARCH */}
-          {page === 'search' && (
-            <div style={{ animation: 'fadeIn 0.4s ease' }}>
-              <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>🔍 Search Lectures</h2>
-              <div style={css.card}>
-                <input placeholder="Search by course title or code..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{...css.input, marginBottom: 12, fontSize: 15}} />
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <select value={filterSchool} onChange={e => handleFacultyChange(e.target.value)} style={{...css.select, flex: '1 1 200px'}}>
-                    <option value="">🏛️ All Faculties</option>
-                    {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
-                  <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={{...css.select, flex: '1 1 200px'}}>
-                    <option value="">📚 All Departments</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                  <select value={filterLevel} onChange={e => setFilterLevel(e.target.value)} style={{...css.select, flex: '1 1 150px'}}>
-                    <option value="">📊 All Levels</option>
-                    <option value="100">100 Level</option><option value="200">200 Level</option>
-                    <option value="300">300 Level</option><option value="400">400 Level</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{...css.grid, marginTop: 20}}>
-                {filteredCourses.map(c => (
-                  <div key={c.id} style={{...css.card, cursor: 'pointer'}} {...cardHover}
-                    onClick={() => { setSelectedCourse(c); loadLectures(c.id); setPage('course') }}>
-                    <span style={css.tag(t.accent)}>{c.code}</span>
-                    <h3 style={{ margin: '8px 0 4px', fontSize: 16 }}>{c.title}</h3>
-                    <p style={{ color: t.sub, fontSize: 13, margin: 0 }}>Level {c.level} • Sem {c.semester}</p>
-                  </div>
-                ))}
-                {filteredCourses.length === 0 && <EmptyState icon="🔍" title="No courses found" action={true} actionLabel="Clear Filters" onAction={() => { setSearchQuery(''); setFilterLevel(''); setFilterSchool(''); setFilterDept('') }} />}
-              </div>
-            </div>
-          )}
+          {/* HOME */}
+{page === 'home' && (
+  <div style={{ animation: 'fadeIn 0.4s ease' }}>
+    <div style={{ textAlign: 'center', padding: '40px 0' }}>
+      <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 8, background: `linear-gradient(135deg, ${t.accent}, ${t.purple})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Your Lecture Library</h1>
+      <p style={{ fontSize: 16, color: t.sub, maxWidth: 500, margin: '0 auto 24px' }}>Browse by Faculty, Department, and Level to find your lecture materials</p>
+    </div>
+    
+    <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>🏛️ Faculties</h2>
+    {loading ? (
+      <div style={css.grid}>
+        {[1,2,3,4,5,6].map(i => <div key={i} style={css.card}><Skeleton h={24} w="80%" /><Skeleton h={16} w="60%" /></div>)}
+      </div>
+    ) : (
+      <div style={css.grid}>
+        {faculties.map(f => (
+          <div key={f.id} style={{...css.card, cursor: 'pointer', textAlign: 'center', padding: '28px 20px'}} {...cardHover}
+            onClick={() => { setSelectedFaculty(f); handleFacultyChange(f.id); setPage('faculty') }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🏛️</div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{f.name}</h3>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
           {/* READ */}
           {page === 'read' && (
@@ -701,10 +660,68 @@ const submitComment = async (lectureId) => {
     )}
   </div>
 )}
+         {/* FACULTY PAGE - Show Departments */}
+{page === 'faculty' && selectedFaculty && (
+  <div style={{ animation: 'fadeIn 0.4s ease' }}>
+    <button onClick={() => { setPage('home'); setSelectedFaculty(null) }} style={css.btnOutline}>← Back to Faculties</button>
+    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>🏛️ {selectedFaculty.name}</h2>
+    <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, color: t.sub }}>Select Department</h3>
+    <div style={css.grid}>
+      {departments.map(d => (
+        <div key={d.id} style={{...css.card, cursor: 'pointer', textAlign: 'center', padding: '24px 20px'}} {...cardHover}
+          onClick={() => { setSelectedDepartment(d); setPage('department') }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>📚</div>
+          <h4 style={{ margin: 0, fontSize: 15 }}>{d.name}</h4>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* DEPARTMENT PAGE - Show Levels */}
+{page === 'department' && selectedDepartment && (
+  <div style={{ animation: 'fadeIn 0.4s ease' }}>
+    <button onClick={() => { setPage('faculty'); setSelectedDepartment(null) }} style={css.btnOutline}>← Back to Departments</button>
+    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>📚 {selectedDepartment.name}</h2>
+    <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, color: t.sub }}>Select Level</h3>
+    <div style={css.grid}>
+      {[100, 200, 300, 400].map(level => (
+        <div key={level} style={{...css.card, cursor: 'pointer', textAlign: 'center', padding: '24px 20px'}} {...cardHover}
+          onClick={() => { setSelectedLevel(level); setPage('level') }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
+          <h4 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{level} Level</h4>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* LEVEL PAGE - Show Courses */}
+{page === 'level' && selectedDepartment && selectedLevel && (
+  <div style={{ animation: 'fadeIn 0.4s ease' }}>
+    <button onClick={() => { setPage('department'); setSelectedLevel(null) }} style={css.btnOutline}>← Back to Levels</button>
+    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>📊 {selectedLevel} Level Courses</h2>
+    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: t.sub }}>{selectedDepartment.name}</h3>
+    <div style={css.grid}>
+      {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).map(c => (
+        <div key={c.id} style={{...css.card, cursor: 'pointer'}} {...cardHover}
+          onClick={() => { setSelectedCourse(c); loadLectures(c.id); setPage('course') }}>
+          <span style={css.tag(t.accent)}>{c.code}</span>
+          <h3 style={{ margin: '8px 0 4px', fontSize: 16 }}>{c.title}</h3>
+          <p style={{ color: t.sub, fontSize: 13, margin: 0 }}>Semester {c.semester} • {c.units || 2} units</p>
+        </div>
+      ))}
+      {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).length === 0 && (
+        <EmptyState icon="📭" title="No courses for this level yet" />
+      )}
+    </div>
+  </div>
+)}
+          
           {/* UPLOAD */}
           {page === 'upload' && user?.role === 'lecturer' && (
             <div style={{maxWidth:600,margin:'0 auto',animation:'fadeIn 0.4s ease'}}>
-              <button onClick={() => setPage('home')} style={css.btnOutline}>← Back</button>
+              <button onClick={() => { setPage('level'); setSelectedCourse(null) }} style={css.btnOutline}>← Back to Courses</button>
               <h2 style={{fontSize:24,fontWeight:700,marginBottom:20}}>📤 Upload Lecture PDF</h2>
               <form onSubmit={handleUpload} style={css.card}>
                 <label style={{fontWeight:600,fontSize:13,color:t.sub,marginBottom:4,display:'block'}}>STEP 1: Faculty</label>
