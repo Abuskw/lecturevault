@@ -42,7 +42,7 @@ const [showComments, setShowComments] = useState(null) // lectureId
   const [uploadDept, setUploadDept] = useState('')
   const [uploadDepts, setUploadDepts] = useState([])
 
-  const API = 'http://localhost:5000'
+ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
