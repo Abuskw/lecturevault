@@ -42,7 +42,7 @@ const [showComments, setShowComments] = useState(null) // lectureId
   const [uploadDept, setUploadDept] = useState('')
   const [uploadDepts, setUploadDepts] = useState([])
 
- const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'y76bn 
+ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -740,11 +740,7 @@ const submitComment = async (lectureId) => {
                 <input type="file" accept=".pdf" onChange={e=>setFile(e.target.files[0])} style={{...css.input,marginTop:12}} required />
                 {file && <p style={{fontSize:13,color:t.sub,marginTop:4}}>📎 {file.name} ({(file.size/1024/1024).toFixed(2)} MB)</p>}
                 <button type="submit" style={{...css.btn(t.success),width:'100%',justifyContent:'center',marginTop:16,padding:14,fontSize:16}}>📤 Upload Lecture</button>
-             {l.averageRating && (
-  <span style={{ fontSize: 13, color: t.warning, marginLeft: 8 }}>
-    ⭐ {Number(l.averageRating).toFixed(1)}
-  </span>
-)}
+             
               </form>
             </div>
           )}
