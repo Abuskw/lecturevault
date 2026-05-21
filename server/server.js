@@ -582,6 +582,45 @@ app.get('/api/lectures/:id/comments', (req, res) => {
   
   res.json(withReplies);
 });
+// Bulk upload multiple lectures
+const bulkUpload = multer({ storage, fileFilter: (req, file, cb) => {
+  if (file.mimetype === 'application/pdf') cb(null, true);
+  else cb(new Error('Only PDFs!'), false);
+}});
+
+app.post('/api/lectures/bulk-upload', bulkUpload.array('pdfs', 20), (req, res) => {
+  try {
+    const { titles, weekNumbers, courseId, academicYear } = req.body;
+    const files = req.files;
+    
+    if (!files || files.length === 0) return res.status(400).json({ error: 'No PDFs uploaded' });
+    
+    const titleList = Array.isArray(titles) ? titles : [titles];
+    const weekList = Array.isArray(weekNumbers) ? weekNumbers : [weekNumbers];
+    
+    let uploaded = 0;
+    const insert = db.prepare(`INSERT INTO lectures (title, weekNumber, fileUrl, fileName, fileSize, academicYear, courseId, uploaderId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+    
+    files.forEach((file, i) => {
+      const fileUrl = '/uploads/' + file.filename;
+      insert.run(
+        titleList[i] || `Week ${weekList[i] || i+1} Lecture`,
+        parseInt(weekList[i]) || i+1,
+        fileUrl,
+        file.originalname,
+        file.size,
+        academicYear,
+        parseInt(courseId),
+        1
+      );
+      uploaded++;
+    });
+    
+    res.status(201).json({ message: `${uploaded} lectures uploaded!`, count: uploaded });
+  } catch (err) {
+    res.status(500).json({ error: 'Bulk upload failed' });
+  }
+});
 // ========================================
 // 404 HANDLER
 // ========================================

@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react'
 
 function App() {
   const [page, setPage] = useState('home')
+  const [bulkFiles, setBulkFiles] = useState([])
+const [bulkTitles, setBulkTitles] = useState('')
+const [bulkWeeks, setBulkWeeks] = useState('')
+const [bulkUploading, setBulkUploading] = useState(false)
   const [selectedFaculty, setSelectedFaculty] = useState(null)
 const [selectedDepartment, setSelectedDepartment] = useState(null)
 const [selectedLevel, setSelectedLevel] = useState(null)
@@ -146,7 +150,34 @@ const submitComment = async (lectureId) => {
     await fetch(`${API}/api/admin/lecturer-code`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ code: newLecturerCode }) })
     showToast('Code updated!')
   }
-
+const handleBulkUpload = async (e) => {
+  e.preventDefault()
+  if (bulkFiles.length === 0) return showToast('Please select PDFs', 'error')
+  
+  setBulkUploading(true)
+  const fd = new FormData()
+  bulkFiles.forEach(f => fd.append('pdfs', f))
+  
+  const titles = bulkTitles.split(',').map(t => t.trim())
+  const weeks = bulkWeeks.split(',').map(w => w.trim())
+  
+  fd.append('titles', JSON.stringify(titles))
+  fd.append('weekNumbers', JSON.stringify(weeks))
+  fd.append('courseId', uploadForm.courseId)
+  fd.append('academicYear', uploadForm.academicYear || '2024/2025')
+  
+  try {
+    const res = await fetch(`${API}/api/lectures/bulk-upload`, { method: 'POST', body: fd })
+    const data = await res.json()
+    if (res.ok) {
+      showToast(`✅ ${data.count} lectures uploaded!`)
+      setBulkFiles([]); setBulkTitles(''); setBulkWeeks('')
+      setUploadForm({ title: '', weekNumber: '', courseId: '', academicYear: '2024/2025', manualCode: '', manualTitle: '' })
+      setUploadFaculty(''); setUploadDept(''); setUploadDepts([])
+    } else showToast(data.error, 'error')
+  } catch { showToast('Network error', 'error') }
+  setBulkUploading(false)
+}
   const handleUpload = async (e) => {
     e.preventDefault()
     if (!file) return showToast('Please select a PDF', 'error')
@@ -790,7 +821,52 @@ const submitComment = async (lectureId) => {
                 <input type="file" accept=".pdf" onChange={e=>setFile(e.target.files[0])} style={{...css.input,marginTop:12}} required />
                 {file && <p style={{fontSize:13,color:t.sub,marginTop:4}}>📎 {file.name} ({(file.size/1024/1024).toFixed(2)} MB)</p>}
                 <button type="submit" style={{...css.btn(t.success),width:'100%',justifyContent:'center',marginTop:16,padding:14,fontSize:16}}>📤 Upload Lecture</button>
+             <label style={{ fontWeight: 600, fontSize: 13, color: t.sub, marginBottom: 4, display: 'block' }}>Faculty (for bulk)</label>
+<select value={uploadFaculty} onChange={e => { setUploadFaculty(e.target.value); setUploadDept(''); setUploadForm({...uploadForm, courseId: ''}); if(e.target.value) fetch(`${API}/api/faculties/${e.target.value}/departments`).then(r => r.json()).then(d => setUploadDepts(d)); else setUploadDepts([]) }} style={{...css.select, marginBottom: 16}}>
+  <option value="">-- Select Faculty --</option>
+  {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+</select>
+
+<label style={{ fontWeight: 600, fontSize: 13, color: t.sub, marginBottom: 4, display: 'block' }}>Department (for bulk)</label>
+<select value={uploadDept} onChange={e => { setUploadDept(e.target.value); setUploadForm({...uploadForm, courseId: ''}) }} style={{...css.select, marginBottom: 16}} disabled={!uploadFaculty}>
+  <option value="">-- Select Department --</option>
+  {uploadDepts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+</select>
              
+             {/* BULK UPLOAD SECTION */}
+<div style={{ marginTop: 40, borderTop: `2px solid ${t.border}`, paddingTop: 24 }}>
+  <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>📦 Bulk Upload</h3>
+  <p style={{ color: t.sub, fontSize: 13, marginBottom: 20 }}>Upload multiple PDFs at once. Name them in order (Week 1, Week 2...)</p>
+  
+  <form onSubmit={handleBulkUpload} style={css.card}>
+    <label style={{ fontWeight: 600, fontSize: 13, color: t.sub, marginBottom: 4, display: 'block' }}>Select Course *</label>
+    <select value={uploadForm.courseId} onChange={e => setUploadForm({...uploadForm, courseId: e.target.value})} style={{...css.select, marginBottom: 16}} disabled={!uploadDept} required>
+      <option value="">-- Select Course --</option>
+      {courses.filter(c => c.departmentId == uploadDept).map(c => <option key={c.id} value={c.id}>{c.code} - {c.title}</option>)}
+    </select>
+    
+    <label style={{ fontWeight: 600, fontSize: 13, color: t.sub, marginBottom: 4, display: 'block' }}>Select PDF Files * (up to 20)</label>
+    <input type="file" accept=".pdf" multiple onChange={e => setBulkFiles(Array.from(e.target.files))} style={{...css.input, marginBottom: 12}} required />
+    {bulkFiles.length > 0 && (
+      <div style={{ marginBottom: 12, fontSize: 13, color: t.sub }}>
+        <p style={{ fontWeight: 600, color: t.text }}>📎 {bulkFiles.length} files selected:</p>
+        {bulkFiles.map((f, i) => <p key={i} style={{ margin: 2 }}>{i+1}. {f.name} ({(f.size/1024/1024).toFixed(2)} MB)</p>)}
+      </div>
+    )}
+    
+    <label style={{ fontWeight: 600, fontSize: 13, color: t.sub, marginBottom: 4, display: 'block' }}>Titles (comma-separated, optional)</label>
+    <input placeholder="e.g., Introduction, Variables, Loops" value={bulkTitles} onChange={e => setBulkTitles(e.target.value)} style={{...css.input, marginBottom: 12}} />
+    
+    <label style={{ fontWeight: 600, fontSize: 13, color: t.sub, marginBottom: 4, display: 'block' }}>Week Numbers (comma-separated, optional)</label>
+    <input placeholder="e.g., 1,2,3" value={bulkWeeks} onChange={e => setBulkWeeks(e.target.value)} style={{...css.input, marginBottom: 12}} />
+    
+    <input placeholder="Academic Year" value={uploadForm.academicYear} onChange={e => setUploadForm({...uploadForm, academicYear: e.target.value})} style={{...css.input, marginBottom: 16}} />
+    
+    <button type="submit" disabled={bulkUploading} style={{...css.btn(t.purple), width: '100%', justifyContent: 'center', padding: 14, fontSize: 16}}>
+      {bulkUploading ? 'Uploading...' : `📦 Upload ${bulkFiles.length || 0} Lectures`}
+    </button>
+  </form>
+</div>
               </form>
             </div>
           )}
