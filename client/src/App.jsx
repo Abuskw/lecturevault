@@ -42,7 +42,7 @@ const [showComments, setShowComments] = useState(null) // lectureId
   const [uploadDept, setUploadDept] = useState('')
   const [uploadDepts, setUploadDepts] = useState([])
 
- const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'y76bn 
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -447,7 +447,7 @@ const submitComment = async (lectureId) => {
                     <div key={l.id} style={{...css.flexBetween, padding: '12px 0', borderBottom: `1px solid ${t.border}`}}>
                       <div><strong>{l.title}</strong><p style={{ color: t.sub, fontSize: 13, margin: 2 }}>Week {l.weekNumber}</p></div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        {l.fileUrl && <button onClick={() => setPdfViewer({ url: `${API}${l.fileUrl}`, title: l.title, lectureId: l.id })} style={css.btn(t.purple)}>👁 View</button>}
+                        {l.fileUrl && <button onClick={() => setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title, lectureId: l.id })} style={css.btn(t.purple)}>👁 View</button>}
                         <button onClick={() => toggleBookmark(l)} style={css.btn(t.danger)}>🗑</button>
                       </div>
                     </div>
@@ -463,7 +463,7 @@ const submitComment = async (lectureId) => {
                     <div key={i} style={{...css.flexBetween, padding: '10px 0', borderBottom: `1px solid ${t.border}`}}>
                       <div><strong>{l.title}</strong><p style={{ color: t.sub, fontSize: 12, margin: 2 }}>{l.courseCode} • Week {l.weekNumber} • {l.date}</p></div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setPdfViewer({ url: `${API}${l.fileUrl}`, title: l.title })} style={css.btn(t.purple)}>👁</button>
+                        <button onClick={() => setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title })} style={css.btn(t.purple)}>👁</button>
                         <button onClick={() => { const d = dl.filter((_,j) => j!==i); localStorage.setItem('downloads', JSON.stringify(d)); showToast('Removed') }} style={css.btn(t.danger)}>🗑</button>
                       </div>
                     </div>
