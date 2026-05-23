@@ -73,7 +73,20 @@ const [showComments, setShowComments] = useState(null) // lectureId
       .then(r => r.json())
       .then(d => { setLectures(d); setLoading(false) })
   }
+const loadAllLectures = async () => {
+  setLoading(true)
 
+  try {
+    const res = await fetch(`${API}/api/lectures`)
+    const data = await res.json()
+
+    setLectures(data)
+  } catch (err) {
+    console.log(err)
+  }
+
+  setLoading(false)
+}
   const handleFacultyChange = (facultyId) => {
     setFilterSchool(facultyId)
     setFilterDept('')
@@ -167,7 +180,13 @@ const handleBulkUpload = async (e) => {
   fd.append('academicYear', uploadForm.academicYear || '2024/2025')
   
   try {
-    const res = await fetch(`${API}/api/lectures/bulk-upload`, { method: 'POST', body: fd })
+    const res = await fetch(`${API}/api/lectures/bulk-upload`, {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: fd
+})
     const data = await res.json()
     if (res.ok) {
       showToast(`✅ ${data.count} lectures uploaded!`)
@@ -194,7 +213,13 @@ const handleBulkUpload = async (e) => {
     fd.append('courseId', finalCourseId); fd.append('academicYear', uploadForm.academicYear)
     
     try {
-      const res = await fetch(`${API}/api/lectures/upload`, { method: 'POST', body: fd })
+      const res = await fetch(`${API}/api/lectures/upload`, {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${token}`
+  },
+  body: fd
+})
       const data = await res.json()
       if (res.ok) {
         showToast('✅ Lecture uploaded successfully!')
@@ -718,7 +743,11 @@ const handleBulkUpload = async (e) => {
     <div style={css.grid}>
       {[100, 200, 300, 400].map(level => (
         <div key={level} style={{...css.card, cursor: 'pointer', textAlign: 'center', padding: '24px 20px'}} {...cardHover}
-          onClick={() => { setSelectedLevel(level); setPage('level') }}>
+          onClick={() => {
+  setSelectedLevel(level)
+  loadAllLectures()
+  setPage('level')
+}}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
           <h4 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{level} Level</h4>
         </div>
@@ -727,27 +756,122 @@ const handleBulkUpload = async (e) => {
   </div>
 )}
 
-{/* LEVEL PAGE - Show Courses */}
 {page === 'level' && selectedDepartment && selectedLevel && (
+
   <div style={{ animation: 'fadeIn 0.4s ease' }}>
-    <button onClick={() => { setPage('department'); setSelectedLevel(null) }} style={css.btnOutline}>← Back to Levels</button>
-    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>📊 {selectedLevel} Level Courses</h2>
-    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: t.sub }}>{selectedDepartment.name}</h3>
-    <div style={css.grid}>
-      {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).map(c => (
-        <div key={c.id} style={{...css.card, cursor: 'pointer'}} {...cardHover}
-          onClick={() => { setSelectedCourse(c); loadLectures(c.id); setPage('course') }}>
-          <span style={css.tag(t.accent)}>{c.code}</span>
-          <h3 style={{ margin: '8px 0 4px', fontSize: 16 }}>{c.title}</h3>
-          <p style={{ color: t.sub, fontSize: 13, margin: 0 }}>Semester {c.semester} • {c.units || 2} units</p>
+    <button
+      onClick={() => {
+        setPage('department')
+        setSelectedLevel(null)
+      }}
+      style={css.btnOutline}
+    >
+      ← Back to Levels
+    </button>
+
+```
+<h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>
+  📚 {selectedDepartment.name} — {selectedLevel} Level Lectures
+</h2>
+
+{loading ? (
+  [1,2,3].map(i => (
+    <div key={i} style={css.card}>
+      <Skeleton h={20} w="70%" />
+    </div>
+  ))
+) : (
+  <div>
+    {courses
+      .filter(
+        c =>
+          c.departmentId === selectedDepartment.id &&
+          c.level === selectedLevel
+      )
+      .map(course => (
+        <div
+          key={course.id}
+          style={{ ...css.card, marginBottom: 16 }}
+        >
+          <div style={{ marginBottom: 12 }}>
+            <span style={css.tag(t.accent)}>
+              {course.code}
+            </span>
+
+            <h3 style={{ margin: '8px 0 4px' }}>
+              {course.title}
+            </h3>
+
+            <p style={{ color: t.sub, fontSize: 13 }}>
+              Semester {course.semester}
+            </p>
+          </div>
+
+          {/* LECTURES */}
+          {lectures
+            .filter(l => l.courseId === course.id)
+            .map(l => (
+              <div
+                key={l.id}
+                style={{
+                  padding: 12,
+                  borderTop: `1px solid ${t.border}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 12
+                }}
+              >
+                <div>
+                  <strong>{l.title}</strong>
+                  <p
+                    style={{
+                      color: t.sub,
+                      fontSize: 12,
+                      margin: 2
+                    }}
+                  >
+                    Week {l.weekNumber}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() =>
+                      setPdfViewer({
+                        url: `${API}${l.fileUrl}`,
+                        title: l.title,
+                        lectureId: l.id
+                      })
+                    }
+                    style={css.btn(t.purple)}
+                  >
+                    👁 View
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      window.open(
+                        `${API}/api/lectures/${l.id}/download`,
+                        '_blank'
+                      )
+                    }
+                    style={css.btn(t.accent)}
+                  >
+                    ⬇ Download
+                  </button>
+                </div>
+              </div>
+            ))}
         </div>
       ))}
-      {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).length === 0 && (
-        <EmptyState icon="📭" title="No courses for this level yet" />
-      )}
-    </div>
   </div>
 )}
+```
+
+  </div>
+)}
+
           {/* SEARCH */}
 {page === 'search' && (
   <div style={{ animation: 'fadeIn 0.4s ease' }}>

@@ -35,7 +35,7 @@ const upload = multer({ storage, fileFilter: (req, file, cb) => {
   else cb(new Error('Only PDFs!'), false);
 }});
 
-app.post('/api/lectures/upload', upload.single('pdf'), (req, res) => {
+app.post('/api/lectures/upload', auth, upload.single('pdf'), (req, res) => {
   try {
     const { title, weekNumber, courseId, academicYear } = req.body;
     const file = req.file;
@@ -43,7 +43,16 @@ app.post('/api/lectures/upload', upload.single('pdf'), (req, res) => {
     
     const fileUrl = '/uploads/' + file.filename;
     db.prepare(`INSERT INTO lectures (title, weekNumber, fileUrl, fileName, fileSize, academicYear, courseId, uploaderId)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(title, parseInt(weekNumber), fileUrl, file.originalname, file.size, academicYear, parseInt(courseId), 1);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+  title,
+  parseInt(weekNumber),
+  fileUrl,
+  file.originalname,
+  file.size,
+  academicYear,
+  parseInt(courseId),
+  req.user.userId
+);
     
     res.status(201).json({ message: 'Uploaded!', fileUrl });
   } catch (err) {
@@ -64,7 +73,11 @@ app.get('/api/lectures/:id/download', (req, res) => {
   
   db.prepare('UPDATE lectures SET downloads = downloads + 1 WHERE id = ?').run(req.params.id);
   
-  const filePath = path.join(__dirname, lecture.fileUrl);
+  const filePath = path.join(
+  __dirname,
+  'uploads',
+  path.basename(lecture.fileUrl)
+);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
   
   res.download(filePath, lecture.fileName || 'lecture.pdf');
@@ -83,7 +96,23 @@ let LECTURER_SECRET = process.env.LECTURER_SECRET || 'teach2025';
 // JWT secret
 const JWT_SECRET =
   process.env.JWT_SECRET || 'secret123';
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
 
+  if (!token) {
+    return res.status(401).json({ error: 'No token' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    req.user = decoded;
+
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
 // ========================================
 // HEALTH CHECK
 // ========================================
@@ -369,7 +398,27 @@ app.get('/api/courses/:id/lectures', (req, res) => {
     });
   }
 });
+app.get('/api/lectures', (req, res) => {
+  try {
+    const lectures = db.prepare(`
+      SELECT
+        lectures.*,
+        courses.code as courseCode,
+        courses.title as courseTitle
+      FROM lectures
+      JOIN courses
+        ON lectures.courseId = courses.id
+      WHERE lectures.status = 'published'
+      ORDER BY lectures.createdAt DESC
+    `).all();
 
+    res.json(lectures);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to fetch lectures'
+    });
+  }
+});
 // ========================================
 // PATHFINDER ROUTES
 // ========================================
@@ -588,7 +637,7 @@ const bulkUpload = multer({ storage, fileFilter: (req, file, cb) => {
   else cb(new Error('Only PDFs!'), false);
 }});
 
-app.post('/api/lectures/bulk-upload', bulkUpload.array('pdfs', 20), (req, res) => {
+app.post('/api/lectures/bulk-upload', auth, bulkUpload.array('pdfs', 20), (req, res) => {
   try {
     const { titles, weekNumbers, courseId, academicYear } = req.body;
     const files = req.files;
@@ -603,7 +652,7 @@ app.post('/api/lectures/bulk-upload', bulkUpload.array('pdfs', 20), (req, res) =
     
     files.forEach((file, i) => {
       const fileUrl = '/uploads/' + file.filename;
-      insert.run(
+      req.user.userId
         titleList[i] || `Week ${weekList[i] || i+1} Lecture`,
         parseInt(weekList[i]) || i+1,
         fileUrl,
