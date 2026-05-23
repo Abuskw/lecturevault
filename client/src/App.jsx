@@ -126,7 +126,14 @@ const submitRating = async () => {
   setRatingComment('')
   loadLectures(selectedCourse?.id)
 }
-
+const EmptyState = ({ icon, title, subtitle, action, actionLabel, onAction }) => (
+  <div style={{ textAlign: 'center', padding: 60, animation: 'fadeIn 0.4s ease' }}>
+    <div style={{ fontSize: 64, marginBottom: 16 }}>{icon}</div>
+    <h3 style={{ fontSize: 20, marginBottom: 8, color: t.text, fontWeight: 600 }}>{title}</h3>
+    {subtitle && <p style={{ color: t.sub, fontSize: 14, maxWidth: 400, margin: '0 auto 20px' }}>{subtitle}</p>}
+    {action && <button onClick={onAction} style={{...css.btn(t.accent), marginTop: 8, padding: '12px 24px'}}>{actionLabel}</button>}
+  </div>
+)
 const submitComment = async (lectureId) => {
   if (!commentText.trim()) return
   const res = await fetch(`${API}/api/lectures/${lectureId}/comments`, {
@@ -432,12 +439,21 @@ const handleBulkUpload = async (e) => {
               <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>📖 My Library</h2>
               <div style={css.card}>
                 <h3 style={{ marginTop: 0 }}>⭐ Bookmarks ({bookmarks.length})</h3>
-                {bookmarks.length === 0 ? <EmptyState icon="⭐" title="No bookmarks yet" action={true} actionLabel="🔍 Browse Courses" onAction={() => setPage('search')} /> : 
+                {bookmarks.length === 0 ? (
+                  <EmptyState icon="⭐" title="No Bookmarks" subtitle="Tap the star icon on any lecture to save it here for quick access." action={true} actionLabel="Browse Courses" onAction={() => setPage('home')} />
+                ) : (
                   bookmarks.map(l => (
                     <div key={l.id} style={{...css.flexBetween, padding: '12px 0', borderBottom: `1px solid ${t.border}`}}>
                       <div><strong>{l.title}</strong><p style={{ color: t.sub, fontSize: 13, margin: 2 }}>Week {l.weekNumber}</p></div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        {l.fileUrl && <button onClick={() => setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title, lectureId: l.id })} style={css.btn(t.purple)}>👁 View</button>}
+                        {l.fileUrl && <button onClick={() => {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (isMobile) {
+    window.open(`${API}/api/lectures/${l.id}/download`, '_blank')
+  } else {
+    setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title, lectureId: l.id })
+  }
+}}>👁 View</button>}
                         <button onClick={() => toggleBookmark(l)} style={css.btn(t.danger)}>🗑</button>
                       </div>
                     </div>
@@ -448,12 +464,19 @@ const handleBulkUpload = async (e) => {
                 <h3 style={{ marginTop: 0 }}>📥 Recent Downloads</h3>
                 {(() => {
                   const dl = JSON.parse(localStorage.getItem('downloads') || '[]')
-                  if (dl.length === 0) return <EmptyState icon="📭" title="No downloads yet" />
+                  if (dl.length === 0) return <EmptyState icon="📥" title="No Downloads" subtitle="Downloaded lectures will appear here for offline access." action={true} actionLabel="Find Lectures" onAction={() => setPage('home')} />
                   return dl.map((l, i) => (
                     <div key={i} style={{...css.flexBetween, padding: '10px 0', borderBottom: `1px solid ${t.border}`}}>
                       <div><strong>{l.title}</strong><p style={{ color: t.sub, fontSize: 12, margin: 2 }}>{l.courseCode} • Week {l.weekNumber} • {l.date}</p></div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title })} style={css.btn(t.purple)}>👁</button>
+                        <button onClick={() => {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (isMobile) {
+    window.open(`${API}/api/lectures/${l.id}/download`, '_blank')
+  } else {
+    setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title, lectureId: l.id })
+  }
+}}>👁</button>
                         <button onClick={() => { const d = dl.filter((_,j) => j!==i); localStorage.setItem('downloads', JSON.stringify(d)); showToast('Removed') }} style={css.btn(t.danger)}>🗑</button>
                       </div>
                     </div>
@@ -598,7 +621,7 @@ const handleBulkUpload = async (e) => {
               </div>
               <h3 style={{fontSize:20,marginBottom:12}}>📚 Lectures ({lectures.length})</h3>
               {loading ? [1,2,3].map(i => <div key={i} style={css.card}><Skeleton h={20} w="70%" /><Skeleton h={14} w="50%" /></div>) :
-                lectures.length === 0 ? <EmptyState icon="📭" title="No lectures yet" /> :
+                lectures.length === 0 ? <EmptyState icon="📭" title="No Lectures Yet" subtitle="This course doesn't have any uploaded lectures. Check back later or contact your lecturer." /> :
                 lectures.map(l => (
                   <div key={l.id} style={{...css.card, ...css.flexBetween}}>
                     <div style={{flex:1}}>
@@ -609,7 +632,14 @@ const handleBulkUpload = async (e) => {
                       <p style={{color:t.sub,fontSize:13,margin:0}}>{l.academicYear} • By {l.uploaderName||'Unknown'}</p>
                     </div>
                     <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                      {l.fileUrl && <button onClick={() => setPdfViewer({url:`${API}${l.fileUrl}`,title:l.title,lectureId:l.id})} style={css.btn(t.purple)}>👁 View</button>}
+                      {l.fileUrl && <button onClick={() => {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (isMobile) {
+    window.open(`${API}/api/lectures/${l.id}/download`, '_blank')
+  } else {
+    setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title, lectureId: l.id })
+  }
+}}>👁 View</button>}
                       {l.fileUrl && <button onClick={() => {
                         const dl=JSON.parse(localStorage.getItem('downloads')||'[]')
                         dl.unshift({title:l.title,courseCode:selectedCourse?.code||'',weekNumber:l.weekNumber,fileUrl:l.fileUrl,date:new Date().toLocaleDateString()})
@@ -727,58 +757,88 @@ const handleBulkUpload = async (e) => {
   </div>
 )}
 
-{/* LEVEL PAGE - Show Courses */}
+{/* LEVEL PAGE - Show PDFs grouped by course */}
 {page === 'level' && selectedDepartment && selectedLevel && (
   <div style={{ animation: 'fadeIn 0.4s ease' }}>
     <button onClick={() => { setPage('department'); setSelectedLevel(null) }} style={css.btnOutline}>← Back to Levels</button>
-    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>📊 {selectedLevel} Level Courses</h2>
-    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: t.sub }}>{selectedDepartment.name}</h3>
-    <div style={css.grid}>
-      {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).map(c => (
-        <div key={c.id} style={{...css.card, cursor: 'pointer'}} {...cardHover}
-          onClick={() => { setSelectedCourse(c); loadLectures(c.id); setPage('course') }}>
-          <span style={css.tag(t.accent)}>{c.code}</span>
-          <h3 style={{ margin: '8px 0 4px', fontSize: 16 }}>{c.title}</h3>
-          <p style={{ color: t.sub, fontSize: 13, margin: 0 }}>Semester {c.semester} • {c.units || 2} units</p>
-        </div>
-      ))}
-      {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).length === 0 && (
-        <EmptyState icon="📭" title="No courses for this level yet" />
-      )}
-    </div>
-  </div>
-)}
-          {/* SEARCH */}
-{page === 'search' && (
-  <div style={{ animation: 'fadeIn 0.4s ease' }}>
-    <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>🔍 Search Courses</h2>
-    <div style={css.card}>
-      <input placeholder="Search by course title or code..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{...css.input, marginBottom: 12}} />
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <select value={filterSchool} onChange={e => handleFacultyChange(e.target.value)} style={{...css.select, flex: '1 1 200px'}}>
-          <option value="">🏛️ All Faculties</option>
-          {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
-        <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={{...css.select, flex: '1 1 200px'}}>
-          <option value="">📚 All Departments</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-        <select value={filterLevel} onChange={e => setFilterLevel(e.target.value)} style={{...css.select, flex: '1 1 150px'}}>
-          <option value="">📊 All Levels</option>
-          <option value="100">100</option><option value="200">200</option><option value="300">300</option><option value="400">400</option>
-        </select>
-      </div>
-    </div>
-    <div style={{...css.grid, marginTop: 20}}>
-      {filteredCourses.map(c => (
-        <div key={c.id} style={{...css.card, cursor: 'pointer'}} {...cardHover}
-          onClick={() => { setSelectedCourse(c); loadLectures(c.id); setPage('course') }}>
-          <span style={css.tag(t.accent)}>{c.code}</span>
-          <h3 style={{ margin: '8px 0 4px', fontSize: 16 }}>{c.title}</h3>
-          <p style={{ color: t.sub, fontSize: 13, margin: 0 }}>Level {c.level} • Sem {c.semester}</p>
-        </div>
-      ))}
-    </div>
+    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>📊 {selectedLevel} Level</h2>
+    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 20, color: t.sub }}>{selectedDepartment.name}</h3>
+    
+    {(() => {
+      const deptCourses = courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel)
+      
+      return deptCourses.map(course => {
+        // Get lectures for this course
+        const courseLectures = lectures.filter(l => l.courseId === course.id)
+        
+        return (
+          <div key={course.id} style={{ marginBottom: 32 }}>
+            {/* Course Header */}
+            <div style={{...css.flexBetween, marginBottom: 12, padding: '12px 16px', background: t.accent, borderRadius: 10, color: 'white' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{course.code}</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 13, opacity: 0.9 }}>{course.title}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{...css.badge, background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: 12}}>Sem {course.semester}</span>
+                <span style={{...css.badge, background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: 12}}>{course.units || 2} units</span>
+              </div>
+            </div>
+            
+            {/* PDFs for this course */}
+            {courseLectures.length === 0 ? (
+              <div style={{...css.card, textAlign: 'center', padding: 20, opacity: 0.6 }}>
+                <p style={{ color: t.sub, margin: 0, fontStyle: 'italic' }}>No PDFs uploaded yet</p>
+                {user?.role === 'lecturer' && (
+                  <button onClick={() => {
+                    setSelectedCourse(course)
+                    setUploadForm({...uploadForm, courseId: course.id, title: '', weekNumber: ''})
+                    setPage('quick-upload')
+                  }} style={{...css.btn(t.success), marginTop: 8}}>+ Upload PDF</button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {courseLectures.sort((a, b) => a.weekNumber - b.weekNumber).map(lecture => (
+                  <div key={lecture.id} style={{...css.card, ...css.flexBetween, padding: '12px 16px'}}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <span style={{ fontSize: 20 }}>📄</span>
+                      <div>
+                        <strong style={{ fontSize: 14 }}>Week {lecture.weekNumber}: {lecture.title}</strong>
+                        <p style={{ color: t.sub, fontSize: 12, margin: 2 }}>
+                          {lecture.fileName || 'PDF'} • {lecture.academicYear}
+                          {lecture.averageRating && ` • ⭐ ${Number(lecture.averageRating).toFixed(1)}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => {
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+                        if (isMobile) window.open(`${API}/api/lectures/${lecture.id}/download`, '_blank')
+                        else setPdfViewer({ url: `${API}/api/lectures/${lecture.id}/download`, title: lecture.title, lectureId: lecture.id })
+                      }} style={{...css.btn(t.purple), padding: '6px 12px', fontSize: 12}}>👁 View</button>
+                      <button onClick={() => {
+                        const dl = JSON.parse(localStorage.getItem('downloads') || '[]')
+                        dl.unshift({ title: lecture.title, courseCode: course.code, weekNumber: lecture.weekNumber, fileUrl: lecture.fileUrl, date: new Date().toLocaleDateString() })
+                        localStorage.setItem('downloads', JSON.stringify(dl.slice(0, 50)))
+                        window.open(`${API}/api/lectures/${lecture.id}/download`, '_blank')
+                      }} style={{...css.btn(t.accent), padding: '6px 12px', fontSize: 12}}>⬇</button>
+                      <button onClick={() => toggleBookmark(lecture)} style={{...css.iconBtn, fontSize: 18, color: isBookmarked(lecture.id) ? t.warning : t.sub}}>
+                        {isBookmarked(lecture.id) ? '⭐' : '☆'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })
+    })()}
+    
+    {courses.filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel).length === 0 && (
+      <EmptyState icon="📭" title="No courses for this level" />
+    )}
   </div>
 )}
           
