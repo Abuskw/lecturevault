@@ -90,6 +90,15 @@ app.get('/api/lectures/:id/download', (req, res) => {
   
   db.prepare('UPDATE lectures SET downloads = downloads + 1 WHERE id = ?').run(req.params.id);
   
+  const filePath = path.join(__dirname, 'uploads', path.basename(lecture.fileUrl));
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.sendFile(filePath);
+});
+  db.prepare('UPDATE lectures SET downloads = downloads + 1 WHERE id = ?').run(req.params.id);
+  
   const filePath = path.join(
   __dirname,
   'uploads',
