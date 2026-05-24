@@ -17,6 +17,23 @@ app.use(cors({
   origin: '*',
   credentials: true,
 }));
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    req.user = decoded;
+
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
 // ============ UPLOAD LECTURE ============
 
 const multer = require('multer');
@@ -96,23 +113,7 @@ let LECTURER_SECRET = process.env.LECTURER_SECRET || 'teach2025';
 // JWT secret
 const JWT_SECRET =
   process.env.JWT_SECRET || 'secret123';
-const auth = (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
 
-  if (!token) {
-    return res.status(401).json({ error: 'No token' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    req.user = decoded;
-
-    next();
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
-  }
-};
 // ========================================
 // HEALTH CHECK
 // ========================================
@@ -650,9 +651,9 @@ app.post('/api/lectures/bulk-upload', auth, bulkUpload.array('pdfs', 20), (req, 
     let uploaded = 0;
     const insert = db.prepare(`INSERT INTO lectures (title, weekNumber, fileUrl, fileName, fileSize, academicYear, courseId, uploaderId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
     
-    files.forEach((file, i) => {
+        files.forEach((file, i) => {
       const fileUrl = '/uploads/' + file.filename;
-      req.user.userId
+      insert.run(
         titleList[i] || `Week ${weekList[i] || i+1} Lecture`,
         parseInt(weekList[i]) || i+1,
         fileUrl,
@@ -660,7 +661,7 @@ app.post('/api/lectures/bulk-upload', auth, bulkUpload.array('pdfs', 20), (req, 
         file.size,
         academicYear,
         parseInt(courseId),
-        1
+        req.user?.userId || 1
       );
       uploaded++;
     });
