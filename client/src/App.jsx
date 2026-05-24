@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react'
 
+import { Document, Page, pdfjs } from 'react-pdf'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`
 function App() {
   const [page, setPage] = useState('home')
+  const [pdfPage, setPdfPage] = useState(1)
+const [pdfTotalPages, setPdfTotalPages] = useState(0)
   const [bulkFiles, setBulkFiles] = useState([])
 const [bulkTitles, setBulkTitles] = useState('')
 const [bulkWeeks, setBulkWeeks] = useState('')
@@ -141,6 +147,7 @@ const submitRating = async () => {
 }
 
 const submitComment = async (lectureId) => {
+  if (!lectureId) return showToast('Select a lecture first', 'error')
   if (!commentText.trim()) return
   const res = await fetch(`${API}/api/lectures/${lectureId}/comments`, {
     method: 'POST',
@@ -337,27 +344,47 @@ const handleBulkUpload = async (e) => {
       )}
 
       {/* PDF VIEWER */}
-      {pdfViewer && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease' }}>
-          <div style={{ background: '#1e293b', color: 'white', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => { setPdfViewer(null); setPdfZoom(1) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', padding: '6px 12px', borderRadius: 8 }}>✕ Close</button>
-              <span style={{ fontWeight: 600, fontSize: 15 }}>📄 {pdfViewer.title}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <button onClick={() => setPdfZoom(z => Math.max(0.5, z - 0.25))} style={pdfBtn}>🔍−</button>
-              <span style={{ fontSize: 13, minWidth: 45, textAlign: 'center' }}>{Math.round(pdfZoom * 100)}%</span>
-              <button onClick={() => setPdfZoom(z => Math.min(3, z + 0.25))} style={pdfBtn}>🔍+</button>
-              <button onClick={() => setPdfZoom(1)} style={pdfBtn}>↺</button>
-              <span style={{ margin: '0 4px', opacity: 0.3 }}>|</span>
-              <button onClick={() => window.open(`${API}/api/lectures/${pdfViewer.lectureId}/download`, '_blank')} style={pdfBtn}>⬇ Download</button>
-            </div>
-          </div>
-          <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', padding: 20, background: '#525659' }}>
-            <iframe src={pdfViewer.url} style={{ width: `${pdfZoom * 100}%`, maxWidth: '100%', height: '100%', border: 'none', borderRadius: 6, boxShadow: '0 4px 20px rgba(0,0,0,0.5)', transition: 'width 0.2s' }} title="PDF Viewer" />
-          </div>
-        </div>
-      )}
+{pdfViewer && (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+    {/* Top Bar */}
+    <div style={{ background: '#1e293b', color: 'white', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={() => { setPdfViewer(null); setPdfZoom(1) }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: 18, cursor: 'pointer', padding: '6px 12px', borderRadius: 6 }}>✕ Close</button>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>📄 {pdfViewer.title}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button onClick={() => setPdfZoom(z => Math.max(0.5, z - 0.25))} style={pdfBtn}>🔍−</button>
+        <span style={{ fontSize: 12, minWidth: 40, textAlign: 'center' }}>{Math.round(pdfZoom * 100)}%</span>
+        <button onClick={() => setPdfZoom(z => Math.min(3, z + 0.25))} style={pdfBtn}>🔍+</button>
+        <button onClick={() => setPdfZoom(1)} style={pdfBtn}>↺</button>
+        <span style={{ margin: '0 2px', opacity: 0.3 }}>|</span>
+        <button onClick={() => window.open(`${API}/api/lectures/${pdfViewer.lectureId}/download`, '_blank')} style={pdfBtn}>⬇ Download</button>
+      </div>
+    </div>
+  <button onClick={() => setPdfPage(p => Math.max(1, p - 1))} disabled={pdfPage <= 1} style={pdfBtn}>◀</button>
+<span style={{ fontSize: 12 }}>{pdfPage}/{pdfTotalPages}</span>
+<button onClick={() => setPdfPage(p => Math.min(pdfTotalPages, p + 1))} disabled={pdfPage >= pdfTotalPages} style={pdfBtn}>▶</button>
+    {/* PDF Document */}
+    <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', padding: 10, background: '#525659' }}>
+      <Document
+  file={pdfViewer.url}
+  onLoadSuccess={({ numPages }) => setPdfTotalPages(numPages)}
+  onLoadError={() => {
+    window.open(pdfViewer.url, '_blank')
+    setPdfViewer(null)
+  }}
+  loading={<div style={{ color: 'white', padding: 40, textAlign: 'center' }}>📄 Loading PDF...</div>}
+>
+  <Page
+    pageNumber={pdfPage}
+    scale={pdfZoom}
+    renderTextLayer={true}
+    renderAnnotationLayer={true}
+  />
+</Document>
+    </div>
+  </div>
+)}
 {/* RATING MODAL */}
 {showRating && (
   <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}
@@ -478,7 +505,7 @@ const handleBulkUpload = async (e) => {
                     <div key={i} style={{...css.flexBetween, padding: '10px 0', borderBottom: `1px solid ${t.border}`}}>
                       <div><strong>{l.title}</strong><p style={{ color: t.sub, fontSize: 12, margin: 2 }}>{l.courseCode} • Week {l.weekNumber} • {l.date}</p></div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title })} style={css.btn(t.purple)}>👁</button>
+                        <button onClick={() => setPdfViewer({ url: `${API}/api/lectures/${l.id}/download`, title: l.title, lectureId: l.id })} style={css.btn(t.purple)}>👁</button>
                         <button onClick={() => { const d = dl.filter((_,j) => j!==i); localStorage.setItem('downloads', JSON.stringify(d)); showToast('Removed') }} style={css.btn(t.danger)}>🗑</button>
                       </div>
                     </div>
@@ -757,118 +784,42 @@ const handleBulkUpload = async (e) => {
 )}
 
 {page === 'level' && selectedDepartment && selectedLevel && (
-
   <div style={{ animation: 'fadeIn 0.4s ease' }}>
-    <button
-      onClick={() => {
-        setPage('department')
-        setSelectedLevel(null)
-      }}
-      style={css.btnOutline}
-    >
-      ← Back to Levels
-    </button>
+    <button onClick={() => { setPage('department'); setSelectedLevel(null) }} style={css.btnOutline}>← Back to Levels</button>
+    <h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>📚 {selectedDepartment.name} — {selectedLevel} Level Lectures</h2>
 
-```
-<h2 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0' }}>
-  📚 {selectedDepartment.name} — {selectedLevel} Level Lectures
-</h2>
-
-{loading ? (
-  [1,2,3].map(i => (
-    <div key={i} style={css.card}>
-      <Skeleton h={20} w="70%" />
-    </div>
-  ))
-) : (
-  <div>
-    {courses
-      .filter(
-        c =>
-          c.departmentId === selectedDepartment.id &&
-          c.level === selectedLevel
-      )
-      .map(course => (
-        <div
-          key={course.id}
-          style={{ ...css.card, marginBottom: 16 }}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <span style={css.tag(t.accent)}>
-              {course.code}
-            </span>
-
-            <h3 style={{ margin: '8px 0 4px' }}>
-              {course.title}
-            </h3>
-
-            <p style={{ color: t.sub, fontSize: 13 }}>
-              Semester {course.semester}
-            </p>
-          </div>
-
-          {/* LECTURES */}
-          {lectures
-            .filter(l => l.courseId === course.id)
-            .map(l => (
-              <div
-                key={l.id}
-                style={{
-                  padding: 12,
-                  borderTop: `1px solid ${t.border}`,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 12
-                }}
-              >
-                <div>
-                  <strong>{l.title}</strong>
-                  <p
-                    style={{
-                      color: t.sub,
-                      fontSize: 12,
-                      margin: 2
-                    }}
-                  >
-                    Week {l.weekNumber}
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() =>
-                      setPdfViewer({
-                        url: `${API}${l.fileUrl}`,
-                        title: l.title,
-                        lectureId: l.id
-                      })
-                    }
-                    style={css.btn(t.purple)}
-                  >
-                    👁 View
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      window.open(
-                        `${API}/api/lectures/${l.id}/download`,
-                        '_blank'
-                      )
-                    }
-                    style={css.btn(t.accent)}
-                  >
-                    ⬇ Download
-                  </button>
-                </div>
+    {loading ? (
+      [1,2,3].map(i => (
+        <div key={i} style={css.card}><Skeleton h={20} w="70%" /></div>
+      ))
+    ) : (
+      <div>
+        {courses
+          .filter(c => c.departmentId === selectedDepartment.id && c.level === selectedLevel)
+          .map(course => (
+            <div key={course.id} style={{ ...css.card, marginBottom: 16 }}>
+              <div style={{ marginBottom: 12 }}>
+                <span style={css.tag(t.accent)}>{course.code}</span>
+                <h3 style={{ margin: '8px 0 4px' }}>{course.title}</h3>
+                <p style={{ color: t.sub, fontSize: 13 }}>Semester {course.semester}</p>
               </div>
-            ))}
-        </div>
-      ))}
-  </div>
-)}
-```
 
+              {lectures.filter(l => l.courseId === course.id).map(l => (
+                <div key={l.id} style={{ padding: 12, borderTop: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <strong>{l.title}</strong>
+                    <p style={{ color: t.sub, fontSize: 12, margin: 2 }}>Week {l.weekNumber}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setPdfViewer({ url: `${API}${l.fileUrl}`, title: l.title, lectureId: l.id })} style={css.btn(t.purple)}>👁 View</button>
+                    <button onClick={() => window.open(`${API}/api/lectures/${l.id}/download`, '_blank')} style={css.btn(t.accent)}>⬇ Download</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+      </div>
+    )}
   </div>
 )}
 
