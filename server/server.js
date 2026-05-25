@@ -7,7 +7,13 @@ const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const cloudinary = require('cloudinary').v2;
 
+cloudinary.config({
+  cloud_name: 'dneama7tz',
+  api_key: '331236972982713',
+  api_secret: '5Cmo7rkCquVaNhUu2sc46beooS0'
+});
 // ========================================
 // MIDDLEWARE
 // ========================================
@@ -17,6 +23,7 @@ app.use(cors({
   origin: '*',
   credentials: true,
 }));
+app.use(express.json());
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
 
@@ -52,28 +59,33 @@ const upload = multer({ storage, fileFilter: (req, file, cb) => {
   else cb(new Error('Only PDFs!'), false);
 }});
 
-app.post('/api/lectures/upload', auth, upload.single('pdf'), (req, res) => {
+app.post('/api/lectures/upload', auth, upload.single('pdf'), async (req, res) => {
   try {
     const { title, weekNumber, courseId, academicYear } = req.body;
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'No PDF uploaded' });
     
-    const fileUrl = '/uploads/' + file.filename;
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(file.path, {
+      resource_type: 'raw',
+      folder: 'lecturevault',
+      use_filename: true,
+      unique_filename: true
+    });
+    
     db.prepare(`INSERT INTO lectures (title, weekNumber, fileUrl, fileName, fileSize, academicYear, courseId, uploaderId)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-  title,
-  parseInt(weekNumber),
-  fileUrl,
-  file.originalname,
-  file.size,
-  academicYear,
-  parseInt(courseId),
-  req.user.userId
-);
+      title, parseInt(weekNumber), result.secure_url, file.originalname, file.size,
+      academicYear, parseInt(courseId), req.user?.userId || 1
+    );
     
-    res.status(201).json({ message: 'Uploaded!', fileUrl });
+    // Delete local file after upload
+    fs.unlinkSync(file.path);
+    
+    res.status(201).json({ message: 'Uploaded!', fileUrl: result.secure_url });
   } catch (err) {
-    res.status(500).json({ error: 'Upload failed' });
+    console.error('Upload error:', err);
+    res.status(500).json({ error: 'Upload failed: ' + err.message });
   }
 });
 app.post('/api/courses/create', (req, res) => {
@@ -90,27 +102,10 @@ app.get('/api/lectures/:id/download', (req, res) => {
   
   db.prepare('UPDATE lectures SET downloads = downloads + 1 WHERE id = ?').run(req.params.id);
   
-  const filePath = path.join(__dirname, 'uploads', path.basename(lecture.fileUrl));
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
-  
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'application/pdf');
-  res.sendFile(filePath);
-});
-  db.prepare('UPDATE lectures SET downloads = downloads + 1 WHERE id = ?').run(req.params.id);
-  
-  const filePath = path.join(
-  __dirname,
-  'uploads',
-  path.basename(lecture.fileUrl)
-);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
-  
-  res.download(filePath, lecture.fileName || 'lecture.pdf');
+  // Redirect to Cloudinary URL
+  res.redirect(lecture.fileUrl);
 });
 app.use('/uploads', express.static(uploadsDir));
-// Parse JSON request bodies (VERY IMPORTANT for login/register)
-app.use(express.json());
 
 
 // ========================================
@@ -567,29 +562,24 @@ app.get('/api/departments', (req, res) => {
 // ========================================
 
 // Rate a lecture
-app.post('/api/lectures/:id/rate', (req, res) => {
+app.post('/api/lectures/:id/rate', auth, (req, res) => {
   try {
     const { value, comment } = req.body;
-    const userId = 1; // In production, get from auth token
-    
-    // Check if already rated
+    const userId = req.user.userId;
+
     const existing = db.prepare('SELECT * FROM ratings WHERE userId = ? AND lectureId = ?').get(userId, req.params.id);
-    
     if (existing) {
       db.prepare('UPDATE ratings SET value = ?, comment = ? WHERE id = ?').run(value, comment || null, existing.id);
     } else {
       db.prepare('INSERT INTO ratings (value, comment, userId, lectureId) VALUES (?, ?, ?, ?)').run(value, comment || null, userId, req.params.id);
     }
-    
-    // Get new average
+
     const avg = db.prepare('SELECT AVG(value) as avg, COUNT(*) as count FROM ratings WHERE lectureId = ?').get(req.params.id);
-    
     res.json({ success: true, averageRating: avg.avg, totalRatings: avg.count });
   } catch (error) {
     res.status(500).json({ error: 'Rating failed' });
   }
 });
-
 // Get ratings for a lecture
 app.get('/api/lectures/:id/ratings', (req, res) => {
   const ratings = db.prepare(`
@@ -601,25 +591,32 @@ app.get('/api/lectures/:id/ratings', (req, res) => {
 });
 
 // Add comment
-app.post('/api/lectures/:id/comments', (req, res) => {
+app.post('/api/lectures/:id/comments', auth, (req, res) => {
   try {
     const { text, parentId } = req.body;
-    const userId = 1; // In production, get from auth token
-    
-    const result = db.prepare('INSERT INTO comments (text, userId, lectureId, parentId) VALUES (?, ?, ?, ?)').run(text, userId, req.params.id, parentId || null);
-    
+    const userId = req.user.userId;   // from JWT
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Comment cannot be empty' });
+    }
+
+    const result = db.prepare(
+      'INSERT INTO comments (text, userId, lectureId, parentId) VALUES (?, ?, ?, ?)'
+    ).run(text.trim(), userId, req.params.id, parentId || null);
+
     const comment = db.prepare(`
-      SELECT comments.*, users.fullName, users.avatar FROM comments 
-      JOIN users ON comments.userId = users.id 
+      SELECT comments.*, users.fullName, users.avatar
+      FROM comments
+      JOIN users ON comments.userId = users.id
       WHERE comments.id = ?
     `).get(result.lastInsertRowid);
-    
+
     res.status(201).json(comment);
   } catch (error) {
-    res.status(500).json({ error: 'Comment failed' });
+    console.error('Comment error:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
   }
 });
-
 // Get comments for a lecture
 app.get('/api/lectures/:id/comments', (req, res) => {
   const comments = db.prepare(`
