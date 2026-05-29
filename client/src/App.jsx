@@ -42,7 +42,7 @@ function App() {
   const [filterSchool, setFilterSchool] = useState('')
   const [filterDept, setFilterDept] = useState('')
   const [filterLevel, setFilterLevel] = useState('')
-  const [uploadForm, setUploadForm] = useState({ title: '', weekNumber: '', courseId: '', academicYear: '2024/2025' })
+  const [uploadForm, setUploadForm] = useState({ title: '', weekNumber: '', courseId: '', academicYear: '2024/2025', manualCode: '', manualTitle: '' })
   const [file, setFile] = useState(null)
   const [uploadFaculty, setUploadFaculty] = useState('')
   const [uploadDept, setUploadDept] = useState('')

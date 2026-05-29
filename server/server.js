@@ -20,7 +20,7 @@ cloudinary.config({
 
 // Allow requests from your React/Vite frontend
 app.use(cors({
-  origin: '*',
+  origin: true,
   credentials: true,
 }));
 app.use(express.json());
@@ -525,8 +525,10 @@ app.get('/api/admin/lectures', adminAuth, (req, res) => {
 app.delete('/api/admin/lectures/:id', adminAuth, (req, res) => {
   const lecture = db.prepare('SELECT * FROM lectures WHERE id = ?').get(req.params.id);
   if (lecture) {
-    const fp = path.join(__dirname, lecture.fileUrl);
-    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    if (lecture.fileUrl && lecture.fileUrl.startsWith('/uploads/')) {
+      const fp = path.join(__dirname, lecture.fileUrl);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    }
     db.prepare('DELETE FROM lectures WHERE id = ?').run(req.params.id);
   }
   res.json({ success: true });
@@ -651,8 +653,16 @@ app.post('/api/lectures/bulk-upload', auth, bulkUpload.array('pdfs', 20), (req, 
     
     if (!files || files.length === 0) return res.status(400).json({ error: 'No PDFs uploaded' });
     
-    const titleList = Array.isArray(titles) ? titles : [titles];
-    const weekList = Array.isArray(weekNumbers) ? weekNumbers : [weekNumbers];
+    const parseField = (field) => {
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') {
+        try { return JSON.parse(field) } catch { return field.split(',').map(item => item.trim()).filter(Boolean) }
+      }
+      return [field];
+    }
+
+    const titleList = parseField(titles);
+    const weekList = parseField(weekNumbers);
     
     let uploaded = 0;
     const insert = db.prepare(`INSERT INTO lectures (title, weekNumber, fileUrl, fileName, fileSize, academicYear, courseId, uploaderId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);

@@ -22,7 +22,7 @@ function Upload({ uploadForm, setUploadForm, file, setFile, uploadFaculty, setUp
       const res = await fetch(`${API}/api/lectures/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
       if (res.ok) {
         showToast('✅ Uploaded!')
-        setUploadForm({ title: '', weekNumber: '', courseId: '', academicYear: '2024/2025' })
+        setUploadForm({ title: '', weekNumber: '', courseId: '', academicYear: '2024/2025', manualCode:'', manualTitle:'' })
         setFile(null); setUploadFaculty(''); setUploadDept(''); setUploadDepts([])
       } else { const d = await res.json(); showToast(d.error, 'error') }
     } catch { showToast('Network error', 'error') }
@@ -47,7 +47,7 @@ function Upload({ uploadForm, setUploadForm, file, setFile, uploadFaculty, setUp
     setBulkUploading(false)
   }
 
-  if (!user?.role === 'lecturer') return null
+  if (user?.role !== 'lecturer') return null
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', animation: 'fadeIn 0.4s ease' }}>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function CourseDetail({ selectedCourse, setSelectedCourse, lectures, loading, setPdfViewer, toggleBookmark, isBookmarked, setShowRating, setRatingValue, setRatingComment, showToast, API, t, css, setPage }) {
+function CourseDetail({ selectedCourse, setSelectedCourse, lectures, loading, setPdfViewer, toggleBookmark, isBookmarked, setShowRating, setRatingValue, setRatingComment, showToast, API, token, user, t, css, setPage }) {
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
@@ -14,11 +14,14 @@ function CourseDetail({ selectedCourse, setSelectedCourse, lectures, loading, se
   }
 
   const submitComment = async (lectureId) => {
+    if (!token) { showToast('Please login to comment', 'error'); return }
     if (!commentText.trim() || !lectureId) return
-    await fetch(`${API}/api/lectures/${lectureId}/comments`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(`${API}/api/lectures/${lectureId}/comments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text: commentText, parentId: replyTo })
     })
+    const data = await res.json()
+    if (!res.ok) { showToast(data.error || 'Comment failed', 'error'); return }
     setCommentText(''); setReplyTo(null)
     loadComments(lectureId)
     showToast('Comment added! 💬')
@@ -77,9 +80,9 @@ function CourseDetail({ selectedCourse, setSelectedCourse, lectures, loading, se
         {showComments && (
           <div style={css.card}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              <input placeholder="Ask a question..." value={commentText} onChange={e => setCommentText(e.target.value)}
-                onKeyPress={e => e.key === 'Enter' && submitComment(lectures[0]?.id)} style={{...css.input, flex: 1}} />
-              <button onClick={() => submitComment(lectures[0]?.id)} style={css.btn(t.accent)}>Post</button>
+              <input placeholder={token ? 'Ask a question...' : 'Login to comment...'} value={commentText} onChange={e => setCommentText(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && submitComment(lectures[0]?.id)} style={{...css.input, flex: 1}} disabled={!token} />
+              <button onClick={() => submitComment(lectures[0]?.id)} style={css.btn(t.accent)} disabled={!token}>{token ? 'Post' : 'Login'}</button>
             </div>
             {replyTo && (
               <div style={{ padding: '8px 12px', background: t.bg, borderRadius: 8, marginBottom: 12, fontSize: 13, color: t.sub }}>

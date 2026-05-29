@@ -17,29 +17,36 @@ function Admin({ API, token, t, css, showToast }) {
   useEffect(() => { if (tab === 'lectures') fetchAdmin('/api/admin/lectures').then(setLectures) }, [tab])
 
   const changeRole = async (id, role) => {
-    await fetch(`${API}/api/admin/users/${id}/role`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ role }) })
-    fetchAdmin('/api/admin/users').then(setUsers); showToast('Role updated!')
+    const res = await fetch(`${API}/api/admin/users/${id}/role`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ role }) })
+    if (res.ok) {
+      fetchAdmin('/api/admin/users').then(setUsers)
+      showToast('Role updated!')
+    } else {
+      const data = await res.json(); showToast(data.error || 'Failed to update role', 'error')
+    }
   }
 
   const removeUser = async (id) => {
     if (!confirm('Delete?')) return
-    await fetch(`${API}/api/admin/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-    fetchAdmin('/api/admin/users').then(setUsers)
+    const res = await fetch(`${API}/api/admin/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) fetchAdmin('/api/admin/users').then(setUsers)
+    else { const data = await res.json(); showToast(data.error || 'Failed to delete user', 'error') }
   }
 
   const removeLecture = async (id) => {
     if (!confirm('Delete?')) return
-    await fetch(`${API}/api/admin/lectures/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-    fetchAdmin('/api/admin/lectures').then(setLectures)
+    const res = await fetch(`${API}/api/admin/lectures/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) fetchAdmin('/api/admin/lectures').then(setLectures)
+    else { const data = await res.json(); showToast(data.error || 'Failed to delete lecture', 'error') }
   }
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease' }}>
       <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>🛡️ Admin Panel</h2>
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-        {['dashboard','users','lectures','code'].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={css.btn(tab===t?t.accent:'transparent')}>
-            {t==='dashboard'?'📊':t==='users'?'👥':t==='lectures'?'📄':'🔑'} {t.charAt(0).toUpperCase()+t.slice(1)}
+        {['dashboard','users','lectures','code'].map(tabName => (
+          <button key={tabName} onClick={() => setTab(tabName)} style={css.btn(tab===tabName?t.accent:'transparent')}>
+            {tabName==='dashboard'?'📊':tabName==='users'?'👥':tabName==='lectures'?'📄':'🔑'} {tabName.charAt(0).toUpperCase()+tabName.slice(1)}
           </button>
         ))}
       </div>

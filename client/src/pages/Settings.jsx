@@ -31,10 +31,10 @@ function Settings({ t, css, user, setUser, token, setToken, page, setPage, darkM
     <div style={{ maxWidth: 600, margin: '0 auto', animation: 'fadeIn 0.4s ease' }}>
       <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>⚙️ Settings</h2>
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
-        {['account','appearance','about','privacy'].map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            style={tab===t ? css.btn(t.accent) : {...css.btn(t.accent), background:'transparent', color:t.text, border:`1px solid ${t.border}`, fontSize:12}}>
-            {t==='account'?'👤':t==='appearance'?'🎨':t==='about'?'ℹ️':'🔒'} {t.charAt(0).toUpperCase()+t.slice(1)}
+        {['account','appearance','about','privacy'].map(tabName => (
+          <button key={tabName} onClick={() => setTab(tabName)}
+            style={tab===tabName ? css.btn(t.accent) : {...css.btn(t.accent), background:'transparent', color:t.text, border:`1px solid ${t.border}`, fontSize:12}}>
+            {tabName==='account'?'👤':tabName==='appearance'?'🎨':tabName==='about'?'ℹ️':'🔒'} {tabName.charAt(0).toUpperCase()+tabName.slice(1)}
           </button>
         ))}
       </div>
